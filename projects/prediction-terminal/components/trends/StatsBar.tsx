@@ -36,10 +36,10 @@ export default function StatsBar({ trends, sourceMetadata }: StatsBarProps) {
             <div key={source.source} className="flex items-center gap-2">
               <div className="flex items-center gap-1">
                 {source.source === 'reddit' && <img src="https://res.cloudinary.com/dy1nbfg5g/image/upload/v1762753040/reddit-svgrepo-com_nmgvwi.svg" alt="Reddit" className="w-4 h-4" />}
-                {(source.source === 'x' || source.source === 'twitter') && <span>𝕏</span>}
+                {source.source === 'x' && <span>𝕏</span>}
                 {source.source === 'web' && <span>🌐</span>}
                 <span className="text-black uppercase tracking-wide">
-                  {source.source === 'x' || source.source === 'twitter' ? 'X' : source.source.toUpperCase()}
+                  {source.source === 'x' ? 'X' : source.source.toUpperCase()}
                 </span>
               </div>
               <span className="text-lg font-bold">
