@@ -1,5 +1,6 @@
 import { HighPotentialTrend } from '@/lib/types/database';
 import { formatDistanceToNow } from 'date-fns';
+import React from 'react';
 
 interface TrendCardProps {
   trend: HighPotentialTrend;
@@ -20,7 +21,7 @@ export default function TrendCard({ trend }: TrendCardProps) {
     none: 'bg-white text-black border-black',
   };
 
-  const sourceIcons: Record<string, JSX.Element> = {
+  const sourceIcons: Record<string, React.ReactElement> = {
     reddit: <img src="https://res.cloudinary.com/dy1nbfg5g/image/upload/v1762753040/reddit-svgrepo-com_nmgvwi.svg" alt="Reddit" className="w-5 h-5" />,
     x: <span className="text-xl">𝕏</span>,
     web: <span className="text-xl">🌐</span>,
