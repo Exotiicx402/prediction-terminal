@@ -125,7 +125,7 @@ export default function ConfigPage() {
             Trends must contain at least one of these keywords to be considered
           </p>
           <div className="flex flex-wrap gap-2">
-            {keywords.map((keyword) => (
+            {keywords.map((keyword: string) => (
               <span
                 key={keyword}
                 className="px-3 py-1 border border-black/50 bg-poly-blue-950/20 text-sm"
@@ -145,7 +145,7 @@ export default function ConfigPage() {
             Trends containing these keywords will be automatically rejected
           </p>
           <div className="flex flex-wrap gap-2">
-            {exclusions.map((keyword) => (
+            {exclusions.map((keyword: string) => (
               <span
                 key={keyword}
                 className="px-3 py-1 border border-red-400/50 bg-red-950/20 text-sm text-red-400"
