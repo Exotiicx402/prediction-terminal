@@ -10,6 +10,23 @@ export default function ConfigPage() {
   const [editingKeywords, setEditingKeywords] = useState('');
   const [editingExclusions, setEditingExclusions] = useState('');
 
+  const keywords = settings.keywords_prediction || [];
+  const exclusions = settings.keywords_exclusion || [];
+  const thresholds = {
+    reddit: {
+      minUpvotes: settings.reddit_min_upvotes || 100,
+      minComments: settings.reddit_min_comments || 10,
+      minUpvoteRatio: settings.reddit_min_upvote_ratio || 0.6
+    },
+    x: {
+      minLikes: settings.x_min_likes || 50,
+      minRetweets: settings.x_min_retweets || 10
+    },
+    web: {
+      minScore: settings.web_min_score || 0.7
+    }
+  };
+
   useEffect(() => {
     fetchSettings();
   }, []);
