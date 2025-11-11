@@ -122,9 +122,25 @@ export default function ConfigPage() {
             🎯 PREDICTION KEYWORDS ({keywords.length})
           </h2>
           <p className="text-sm mb-4 text-black/70">
-            Trends must contain at least one of these keywords to be considered
+            Trends must contain at least one of these keywords to be considered. Add keywords separated by commas.
           </p>
-          <div className="flex flex-wrap gap-2">
+          
+          <textarea
+            value={editingKeywords}
+            onChange={(e) => setEditingKeywords(e.target.value)}
+            className="w-full border border-black p-3 mb-4 font-mono text-sm min-h-[120px]"
+            placeholder="election, trump, bitcoin, mvp, etc..."
+          />
+          
+          <button
+            onClick={saveKeywords}
+            disabled={saving}
+            className="px-4 py-2 bg-poly-blue text-white font-semibold hover:bg-poly-blue/80 disabled:opacity-50"
+          >
+            {saving ? 'SAVING...' : 'SAVE KEYWORDS'}
+          </button>
+          
+          <div className="mt-4 flex flex-wrap gap-2">
             {keywords.map((keyword: string) => (
               <span
                 key={keyword}
@@ -142,9 +158,25 @@ export default function ConfigPage() {
             ❌ EXCLUSION KEYWORDS ({exclusions.length})
           </h2>
           <p className="text-sm mb-4 text-black/70">
-            Trends containing these keywords will be automatically rejected
+            Trends containing these keywords will be automatically rejected. Add keywords separated by commas.
           </p>
-          <div className="flex flex-wrap gap-2">
+          
+          <textarea
+            value={editingExclusions}
+            onChange={(e) => setEditingExclusions(e.target.value)}
+            className="w-full border border-red-400 p-3 mb-4 font-mono text-sm min-h-[80px]"
+            placeholder="nsfw, spam, buy my, etc..."
+          />
+          
+          <button
+            onClick={saveExclusions}
+            disabled={saving}
+            className="px-4 py-2 bg-red-600 text-white font-semibold hover:bg-red-700 disabled:opacity-50"
+          >
+            {saving ? 'SAVING...' : 'SAVE EXCLUSIONS'}
+          </button>
+          
+          <div className="mt-4 flex flex-wrap gap-2">
             {exclusions.map((keyword: string) => (
               <span
                 key={keyword}
