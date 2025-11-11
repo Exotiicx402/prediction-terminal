@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSupabase } from '@/lib/supabase/client';
-import { fetchRedditTrends, fetchSubredditTrends, PREDICTION_MARKET_SUBREDDITS } from '@/lib/services/reddit';
+import { fetchRisingTrends, fetchNewTrends, fetchSubredditTrends, PREDICTION_MARKET_SUBREDDITS } from '@/lib/services/reddit';
 import { analyzeTrendForMarkets } from '@/lib/services/openai';
 import { sendTrendAlert, sendSystemNotification } from '@/lib/services/slack';
 import { hasRelevantKeywords, meetsEngagementThreshold, extractMatchedKeywords } from '@/lib/config/trends';
@@ -19,24 +19,31 @@ export async function GET(request: Request) {
     const trendsProcessed: string[] = [];
     const highPotentialTrends: string[] = [];
 
-    // Fetch trends from multiple subreddits
-    for (const subreddit of PREDICTION_MARKET_SUBREDDITS.slice(0, 5)) {
-      const trends = await fetchSubredditTrends(subreddit, 5);
+    // Fetch rising trends from r/all for real-time insights (50 posts)
+    const risingTrends = await fetchRisingTrends(50);
+    
+    // Also fetch newest trends (30 posts) to catch things early
+    const newTrends = await fetchNewTrends(30);
+    
+    // Combine and deduplicate
+    const allTrends = [...risingTrends, ...newTrends];
+    const uniqueTrends = Array.from(
+      new Map(allTrends.map(t => [t.id, t])).values()
+    );
 
-      for (const trend of trends) {
+    console.log(`Scanning ${uniqueTrends.length} unique Reddit trends (rising + new)`);
+
+    for (const trend of uniqueTrends) {
         // Filter by keywords first
         const combinedText = `${trend.title} ${trend.content}`;
         if (!hasRelevantKeywords(combinedText)) {
           continue; // Skip if no relevant keywords
         }
 
-        // Check engagement thresholds
-        if (!meetsEngagementThreshold('reddit', {
-          upvotes: trend.upvotes,
-          comments: trend.comments,
-          upvoteRatio: trend.velocity_score,
-        })) {
-          continue; // Skip if below engagement threshold
+        // Lower thresholds for rising/new content to catch trends early
+        // Skip only if very low engagement (< 10 upvotes or 0 comments)
+        if (trend.upvotes < 10 || trend.comments < 1) {
+          continue;
         }
 
         // Check if we've already processed this trend
