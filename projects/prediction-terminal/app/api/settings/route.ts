@@ -27,10 +27,17 @@ export async function POST(request: Request) {
     const { key, value } = await request.json();
     const supabase = getServerSupabase();
 
+    // Use upsert to create or update
     const { data, error } = await supabase
       .from('settings')
-      .update({ value, updated_at: new Date().toISOString() })
-      .eq('key', key)
+      .upsert(
+        { 
+          key, 
+          value, 
+          updated_at: new Date().toISOString() 
+        },
+        { onConflict: 'key' }
+      )
       .select()
       .single();
 

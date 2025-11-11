@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { PREDICTION_KEYWORDS, EXCLUSION_KEYWORDS } from '@/lib/config/trends';
 
 export default function ConfigPage() {
   const [settings, setSettings] = useState<any>({});
@@ -10,8 +11,8 @@ export default function ConfigPage() {
   const [editingKeywords, setEditingKeywords] = useState('');
   const [editingExclusions, setEditingExclusions] = useState('');
 
-  const keywords = settings.keywords_prediction || [];
-  const exclusions = settings.keywords_exclusion || [];
+  const keywords = settings.keywords_prediction || PREDICTION_KEYWORDS;
+  const exclusions = settings.keywords_exclusion || EXCLUSION_KEYWORDS;
   const thresholds = {
     reddit: {
       minUpvotes: settings.reddit_min_upvotes || 100,
@@ -42,8 +43,11 @@ export default function ConfigPage() {
       });
       
       setSettings(settingsObj);
-      setEditingKeywords((settingsObj.keywords_prediction || []).join(', '));
-      setEditingExclusions((settingsObj.keywords_exclusion || []).join(', '));
+      // Use database values or fall back to config file defaults
+      const keywords = settingsObj.keywords_prediction || PREDICTION_KEYWORDS;
+      const exclusions = settingsObj.keywords_exclusion || EXCLUSION_KEYWORDS;
+      setEditingKeywords(keywords.join(', '));
+      setEditingExclusions(exclusions.join(', '));
     } catch (error) {
       console.error('Error fetching settings:', error);
     } finally {
