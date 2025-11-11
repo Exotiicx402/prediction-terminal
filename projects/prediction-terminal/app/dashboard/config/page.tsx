@@ -139,7 +139,7 @@ export default function ConfigPage() {
           <button
             onClick={saveKeywords}
             disabled={saving}
-            className="px-4 py-2 bg-poly-blue text-white font-semibold hover:bg-poly-blue/80 disabled:opacity-50"
+            className="px-4 py-2 bg-poly-blue text-black font-semibold hover:bg-poly-blue/80 disabled:opacity-50"
           >
             {saving ? 'SAVING...' : 'SAVE KEYWORDS'}
           </button>
@@ -175,7 +175,7 @@ export default function ConfigPage() {
           <button
             onClick={saveExclusions}
             disabled={saving}
-            className="px-4 py-2 bg-red-600 text-white font-semibold hover:bg-red-700 disabled:opacity-50"
+            className="px-4 py-2 bg-red-600 text-black font-semibold hover:bg-red-700 disabled:opacity-50"
           >
             {saving ? 'SAVING...' : 'SAVE EXCLUSIONS'}
           </button>
