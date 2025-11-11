@@ -105,7 +105,6 @@ export async function GET(request: Request) {
 
         // Small delay
         await new Promise((resolve) => setTimeout(resolve, 200));
-      }
     }
 
     // Update source metadata
