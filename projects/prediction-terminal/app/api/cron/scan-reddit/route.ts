@@ -34,77 +34,77 @@ export async function GET(request: Request) {
     console.log(`Scanning ${uniqueTrends.length} unique Reddit trends (rising + new)`);
 
     for (const trend of uniqueTrends) {
-        // Filter by keywords first
-        const combinedText = `${trend.title} ${trend.content}`;
-        if (!hasRelevantKeywords(combinedText)) {
-          continue; // Skip if no relevant keywords
-        }
+      // Filter by keywords first
+      const combinedText = `${trend.title} ${trend.content}`;
+      if (!hasRelevantKeywords(combinedText)) {
+        continue; // Skip if no relevant keywords
+      }
 
-        // Lower thresholds for rising/new content to catch trends early
-        // Skip only if very low engagement (< 10 upvotes or 0 comments)
-        if (trend.upvotes < 10 || trend.comments < 1) {
-          continue;
-        }
+      // Lower thresholds for rising/new content to catch trends early
+      // Skip only if very low engagement (< 10 upvotes or 0 comments)
+      if (trend.upvotes < 10 || trend.comments < 1) {
+        continue;
+      }
 
-        // Check if we've already processed this trend
-        const { data: existing } = await supabase
-          .from('trends')
-          .select('id')
-          .eq('source', 'reddit')
-          .eq('source_id', trend.id)
-          .single();
+      // Check if we've already processed this trend
+      const { data: existing } = await supabase
+        .from('trends')
+        .select('id')
+        .eq('source', 'reddit')
+        .eq('source_id', trend.id)
+        .single();
 
-        if (existing) {
-          continue; // Skip if already exists
-        }
+      if (existing) {
+        continue; // Skip if already exists
+      }
 
-        // Insert trend into database
-        const { data: insertedTrend, error: insertError } = await supabase
-          .from('trends')
-          .insert({
-            source: 'reddit',
-            source_id: trend.id,
-            title: trend.title,
-            content: trend.content,
-            url: trend.url,
-            author: trend.author,
-            engagement_score: trend.upvotes,
-            velocity_score: trend.velocity_score,
-            status: 'analyzing',
-          })
-          .select()
-          .single();
+      // Insert trend into database
+      const { data: insertedTrend, error: insertError } = await supabase
+        .from('trends')
+        .insert({
+          source: 'reddit',
+          source_id: trend.id,
+          title: trend.title,
+          content: trend.content,
+          url: trend.url,
+          author: trend.author,
+          engagement_score: trend.upvotes,
+          velocity_score: trend.velocity_score,
+          status: 'analyzing',
+        })
+        .select()
+        .single();
 
-        if (insertError || !insertedTrend) {
-          console.error('Error inserting trend:', insertError);
-          continue;
-        }
+      if (insertError || !insertedTrend) {
+        console.error('Error inserting trend:', insertError);
+        continue;
+      }
 
-        trendsProcessed.push(insertedTrend.id);
+      trendsProcessed.push(insertedTrend.id);
 
-        // Skip AI analysis - just mark as analyzed with default values
-        const { data: insertedAnalysis } = await supabase
-          .from('analyses')
-          .insert({
-            trend_id: insertedTrend.id,
-            market_potential: 'none',
-            confidence_score: 0,
-            summary: trend.title,
-            reasoning: 'AI analysis disabled',
-            suggested_markets: [],
-            keywords: extractMatchedKeywords(combinedText),
-          })
-          .select()
-          .single();
+      // Skip AI analysis - just mark as analyzed with default values
+      const { data: insertedAnalysis } = await supabase
+        .from('analyses')
+        .insert({
+          trend_id: insertedTrend.id,
+          market_potential: 'none',
+          confidence_score: 0,
+          summary: trend.title,
+          reasoning: 'AI analysis disabled',
+          suggested_markets: [],
+          keywords: extractMatchedKeywords(combinedText),
+        })
+        .select()
+        .single();
 
-        // Update trend status to analyzed
-        await supabase
-          .from('trends')
-          .update({ status: 'analyzed' })
-          .eq('id', insertedTrend.id);
+      // Update trend status to analyzed
+      await supabase
+        .from('trends')
+        .update({ status: 'analyzed' })
+        .eq('id', insertedTrend.id);
 
-        // Small delay
-        await new Promise((resolve) => setTimeout(resolve, 200));
+      // Small delay
+      await new Promise((resolve) => setTimeout(resolve, 200));
     }
 
     // Update source metadata
