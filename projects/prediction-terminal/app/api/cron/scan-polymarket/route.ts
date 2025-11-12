@@ -48,16 +48,16 @@ export async function GET(request: Request) {
         .from('polymarket_markets')
         .upsert(
           {
-            id: market.id || market.questionID,
+            id: market.id || market.condition_id || market.question_id,
             question: market.question,
             description: market.description || '',
             volume: parseFloat(market.volume || 0),
             liquidity: parseFloat(market.liquidity || 0),
             current_odds: market.outcomePrices ? parseFloat(market.outcomePrices[0]) : null,
-            end_date: market.endDate ? new Date(market.endDate).toISOString() : null,
-            category: market.category || null,
-            slug: market.slug || market.id,
-            market_url: `https://polymarket.com/event/${market.slug || market.id}`,
+            end_date: market.end_date_iso ? new Date(market.end_date_iso).toISOString() : null,
+            category: market.tags?.[0] || market.category || null,
+            slug: market.condition_id || market.id,
+            market_url: `https://polymarket.com/event/${market.condition_id || market.id}`,
             raw_data: market,
             updated_at: new Date().toISOString(),
           },
