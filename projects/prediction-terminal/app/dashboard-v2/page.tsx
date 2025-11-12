@@ -148,25 +148,141 @@ export default function DashboardV2() {
 
 // Tab 1: Trending Topics
 function TrendingTopicsTab({ trends, onRefresh }: { trends: any[]; onRefresh: () => void }) {
+  const [filter, setFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'recent' | 'engaged'>('recent');
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      onRefresh();
+      setLastUpdated(new Date());
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [onRefresh]);
+
+  // Calculate time ago
+  const getTimeAgo = (date: string) => {
+    const now = new Date();
+    const past = new Date(date);
+    const diffMs = now.getTime() - past.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+  };
+
+  // Get last updated text
+  const getLastUpdatedText = () => {
+    const diffMs = new Date().getTime() - lastUpdated.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'just now';
+    return `${diffMins}m ago`;
+  };
+
+  // Filter trends
+  const filteredTrends = trends.filter(trend => {
+    if (filter === 'all') return true;
+    // Map subreddit to category
+    const subreddit = trend.author || '';
+    if (filter === 'politics' && ['politics', 'worldnews'].some(s => subreddit.includes(s))) return true;
+    if (filter === 'sports' && ['nfl', 'nba', 'soccer'].some(s => subreddit.includes(s))) return true;
+    if (filter === 'geopolitics' && subreddit.includes('geopolitics')) return true;
+    return false;
+  });
+
+  // Sort trends
+  const sortedTrends = [...filteredTrends].sort((a, b) => {
+    if (sortBy === 'engaged') {
+      return (b.engagement_score || 0) - (a.engagement_score || 0);
+    }
+    return new Date(b.detected_at).getTime() - new Date(a.detected_at).getTime();
+  });
+
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">TRENDING TOPICS ({trends.length})</h2>
-        <button
-          onClick={onRefresh}
-          className="px-4 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-semibold"
-        >
-          🔄 REFRESH
-        </button>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">TRENDING TOPICS ({sortedTrends.length})</h2>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-black/50">Last updated: {getLastUpdatedText()}</span>
+          <button
+            onClick={() => {
+              onRefresh();
+              setLastUpdated(new Date());
+            }}
+            className="px-4 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-semibold"
+          >
+            🔄 REFRESH
+          </button>
+        </div>
       </div>
 
-      {trends.length === 0 ? (
+      {/* Filters and Sort */}
+      <div className="flex justify-between items-center mb-6 pb-4 border-b border-black">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setFilter('all')}
+            className={`px-3 py-1 font-semibold text-sm border-2 transition-colors ${
+              filter === 'all'
+                ? 'border-poly-blue bg-poly-blue text-black'
+                : 'border-black text-black hover:border-poly-blue'
+            }`}
+          >
+            ALL
+          </button>
+          <button
+            onClick={() => setFilter('politics')}
+            className={`px-3 py-1 font-semibold text-sm border-2 transition-colors ${
+              filter === 'politics'
+                ? 'border-poly-blue bg-poly-blue text-black'
+                : 'border-black text-black hover:border-poly-blue'
+            }`}
+          >
+            POLITICS
+          </button>
+          <button
+            onClick={() => setFilter('sports')}
+            className={`px-3 py-1 font-semibold text-sm border-2 transition-colors ${
+              filter === 'sports'
+                ? 'border-poly-blue bg-poly-blue text-black'
+                : 'border-black text-black hover:border-poly-blue'
+            }`}
+          >
+            SPORTS
+          </button>
+          <button
+            onClick={() => setFilter('geopolitics')}
+            className={`px-3 py-1 font-semibold text-sm border-2 transition-colors ${
+              filter === 'geopolitics'
+                ? 'border-poly-blue bg-poly-blue text-black'
+                : 'border-black text-black hover:border-poly-blue'
+            }`}
+          >
+            GEOPOLITICS
+          </button>
+        </div>
+
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as 'recent' | 'engaged')}
+          className="px-3 py-1 border-2 border-black font-semibold text-sm bg-white"
+        >
+          <option value="recent">RECENT</option>
+          <option value="engaged">MOST ENGAGED</option>
+        </select>
+      </div>
+
+      {sortedTrends.length === 0 ? (
         <div className="text-center py-20 text-black/50">
           No trending topics found. Check back soon.
         </div>
       ) : (
         <div className="grid gap-4">
-          {trends.map((trend) => (
+          {sortedTrends.map((trend) => (
             <div
               key={trend.id}
               className="border-2 border-black p-4 hover:border-poly-blue transition-colors"
@@ -182,8 +298,13 @@ function TrendingTopicsTab({ trends, onRefresh }: { trends: any[]; onRefresh: ()
                       />
                     )}
                     <span className="text-xs font-semibold uppercase">{trend.source}</span>
+                    <span className="text-xs text-black/50">•</span>
+                    <span className="text-xs font-semibold text-black/70">
+                      r/{trend.author || 'unknown'}
+                    </span>
+                    <span className="text-xs text-black/50">•</span>
                     <span className="text-xs text-black/50">
-                      {new Date(trend.detected_at).toLocaleString()}
+                      {getTimeAgo(trend.detected_at)}
                     </span>
                   </div>
                   <h3 className="text-lg font-bold mb-2">{trend.title}</h3>
