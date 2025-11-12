@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSupabase } from '@/lib/supabase/client';
-import { fetchRisingTrends, fetchNewTrends, fetchSubredditTrends, PREDICTION_MARKET_SUBREDDITS } from '@/lib/services/reddit';
-import { analyzeTrendForMarkets } from '@/lib/services/openai';
-import { sendTrendAlert, sendSystemNotification } from '@/lib/services/slack';
-import { hasRelevantKeywords, meetsEngagementThreshold, extractMatchedKeywords } from '@/lib/config/trends';
+import { fetchRisingTrends, fetchNewTrends } from '@/lib/services/reddit';
+import { sendSystemNotification } from '@/lib/services/slack';
+import { hasRelevantKeywords } from '@/lib/config/trends';
 
 export const maxDuration = 60; // 60 seconds timeout
 
@@ -66,12 +65,12 @@ export async function GET(request: Request) {
           source_id: trend.id,
           title: trend.title,
           content: trend.content,
-          url: trend.url,
-          author: trend.author,
-          engagement_score: trend.upvotes,
-          velocity_score: trend.velocity_score,
-          status: 'analyzing',
-        })
+            url: trend.url,
+            author: trend.author,
+            engagement_score: trend.upvotes,
+            velocity_score: trend.velocity_score,
+            status: 'pending',
+          })
         .select()
         .single();
 
@@ -82,25 +81,10 @@ export async function GET(request: Request) {
 
       trendsProcessed.push(insertedTrend.id);
 
-      // Skip AI analysis - just mark as analyzed with default values
-      const { data: insertedAnalysis } = await supabase
-        .from('analyses')
-        .insert({
-          trend_id: insertedTrend.id,
-          market_potential: 'none',
-          confidence_score: 0,
-          summary: trend.title,
-          reasoning: 'AI analysis disabled',
-          suggested_markets: [],
-          keywords: extractMatchedKeywords(combinedText),
-        })
-        .select()
-        .single();
-
-      // Update trend status to analyzed
+      // No automatic analysis - just mark as pending
       await supabase
         .from('trends')
-        .update({ status: 'analyzed' })
+        .update({ status: 'pending' })
         .eq('id', insertedTrend.id);
 
       // Small delay

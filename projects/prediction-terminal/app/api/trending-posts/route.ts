@@ -8,13 +8,12 @@ export async function GET() {
     const { data: trends, error } = await supabase
       .from('trends')
       .select('*')
-      .eq('status', 'analyzed')
       .order('detected_at', { ascending: false })
       .limit(100);
 
     if (error) throw error;
 
-    return NextResponse.json(trends || []);
+    return NextResponse.json({ trends: trends || [] });
   } catch (error) {
     console.error('Error fetching trending posts:', error);
     return NextResponse.json({ error: 'Failed to fetch posts' }, { status: 500 });
