@@ -338,58 +338,167 @@ function TrendingTopicsTab({ trends, onRefresh }: { trends: any[]; onRefresh: ()
 
 // Tab 2: Live Markets
 function LiveMarketsTab({ markets, onRefresh }: { markets: any[]; onRefresh: () => void }) {
+  const [filter, setFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'volume' | 'recent' | 'ending'>('volume');
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        await onRefresh();
+        setLastUpdated(new Date());
+      } catch (e) {
+        // ignore
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [onRefresh]);
+
+  const getLastUpdatedText = () => {
+    const diffMs = new Date().getTime() - lastUpdated.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'just now';
+    return `${diffMins}m ago`;
+  };
+
+  const formatCurrencyCompact = (n: number | string | null | undefined) => {
+    const v = typeof n === 'string' ? parseFloat(n) : (n || 0);
+    if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
+    if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}K`;
+    return `$${Math.round(v).toLocaleString()}`;
+  };
+
+  const endsInText = (dateStr?: string | null) => {
+    if (!dateStr) return 'N/A';
+    const end = new Date(dateStr).getTime();
+    const now = Date.now();
+    const diff = end - now;
+    if (diff <= 0) return 'Ended';
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `Ends in ${mins}m`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 48) return `Ends in ${hours}h`;
+    const days = Math.floor(hours / 24);
+    return `Ends in ${days}d`;
+  };
+
+  // Apply filters
+  const filtered = markets.filter((m) => {
+    if (filter === 'all') return true;
+    const cat = (m.category || '').toLowerCase();
+    if (filter === 'politics') return cat.includes('politic') || cat.includes('election');
+    if (filter === 'sports') return cat.includes('sport') || ['nba', 'nfl', 'soccer'].some(t => cat.includes(t));
+    if (filter === 'crypto') return cat.includes('crypto') || cat.includes('bitcoin') || cat.includes('ethereum');
+    if (filter === 'entertainment') return cat.includes('entertain') || cat.includes('culture') || cat.includes('pop');
+    return true;
+  });
+
+  // Sort
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === 'volume') {
+      return (parseFloat(b.volume || 0) - parseFloat(a.volume || 0));
+    }
+    if (sortBy === 'recent') {
+      const aTime = new Date(a.updated_at || a.created_at || 0).getTime();
+      const bTime = new Date(b.updated_at || b.created_at || 0).getTime();
+      return bTime - aTime;
+    }
+    // ending soon (earliest end_date first)
+    const aEnd = a.end_date ? new Date(a.end_date).getTime() : Number.MAX_SAFE_INTEGER;
+    const bEnd = b.end_date ? new Date(b.end_date).getTime() : Number.MAX_SAFE_INTEGER;
+    return aEnd - bEnd;
+  });
+
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">LIVE POLYMARKET MARKETS ({markets.length})</h2>
-        <button
-          onClick={onRefresh}
-          className="px-4 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-semibold"
-        >
-          🔄 REFRESH
-        </button>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">LIVE POLYMARKET MARKETS ({sorted.length})</h2>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-black/50">Last updated: {getLastUpdatedText()}</span>
+          <button
+            onClick={() => { onRefresh(); setLastUpdated(new Date()); }}
+            className="px-4 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-semibold"
+          >
+            🔄 REFRESH
+          </button>
+        </div>
       </div>
 
-      {markets.length === 0 ? (
-        <div className="text-center py-20 text-black/50">
-          No markets found. Check back soon.
+      {/* Filters and Sort */}
+      <div className="flex justify-between items-center mb-6 pb-4 border-b border-black">
+        <div className="flex gap-2">
+          {[
+            { key: 'all', label: 'ALL' },
+            { key: 'politics', label: 'POLITICS' },
+            { key: 'sports', label: 'SPORTS' },
+            { key: 'crypto', label: 'CRYPTO' },
+            { key: 'entertainment', label: 'ENTERTAINMENT' },
+          ].map(btn => (
+            <button
+              key={btn.key}
+              onClick={() => setFilter(btn.key)}
+              className={`px-3 py-1 font-semibold text-sm border-2 transition-colors ${
+                filter === btn.key
+                  ? 'border-poly-blue bg-poly-blue text-black'
+                  : 'border-black text-black hover:border-poly-blue'
+              }`}
+            >
+              {btn.label}
+            </button>
+          ))}
         </div>
+
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as 'volume' | 'recent' | 'ending')}
+          className="px-3 py-1 border-2 border-black font-semibold text-sm bg-white"
+        >
+          <option value="volume">VOLUME (HIGH→LOW)</option>
+          <option value="recent">RECENT</option>
+          <option value="ending">ENDING SOON</option>
+        </select>
+      </div>
+
+      {sorted.length === 0 ? (
+        <div className="text-center py-20 text-black/50">No markets found. Check back soon.</div>
       ) : (
         <div className="grid gap-4">
-          {markets.map((market) => (
-            <div
-              key={market.id}
-              className="border-2 border-black p-4 hover:border-poly-blue transition-colors"
-            >
-              <h3 className="text-lg font-bold mb-3">{market.question}</h3>
-              <div className="grid grid-cols-3 gap-4 mb-3">
-                <div>
-                  <div className="text-xs text-black/50 mb-1">VOLUME</div>
-                  <div className="text-lg font-bold">
-                    ${(market.volume || 0).toLocaleString()}
+          {sorted.map((market) => (
+            <div key={market.id} className="border-2 border-black p-4 hover:border-poly-blue transition-colors">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    {market.category && (
+                      <span className="px-2 py-0.5 text-xs border-2 border-black bg-white">
+                        {String(market.category).toUpperCase()}
+                      </span>
+                    )}
+                    <span className="text-xs text-black/50">{endsInText(market.end_date)}</span>
+                  </div>
+                  <h3 className="text-lg font-bold mb-2 line-clamp-2">{market.question}</h3>
+                  <div className="flex items-center gap-6 text-sm">
+                    <span>
+                      <span className="text-black/60 mr-1">VOLUME</span>
+                      <span className="font-bold">{formatCurrencyCompact(market.volume)}</span>
+                    </span>
+                    <span>
+                      <span className="text-black/60 mr-1">ODDS</span>
+                      <span className="font-bold">{market.current_odds != null ? `${Math.round((Number(market.current_odds) || 0) * 100)}%` : '—'}</span>
+                    </span>
                   </div>
                 </div>
-                <div>
-                  <div className="text-xs text-black/50 mb-1">LIQUIDITY</div>
-                  <div className="text-lg font-bold">
-                    ${(market.liquidity || 0).toLocaleString()}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs text-black/50 mb-1">END DATE</div>
-                  <div className="text-sm font-semibold">
-                    {market.endDate ? new Date(market.endDate).toLocaleDateString() : 'N/A'}
-                  </div>
+                <div className="flex-shrink-0">
+                  <a
+                    href={market.market_url || (market.slug ? `https://polymarket.com/event/${market.slug}` : '#')}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm px-3 py-2 border-2 border-black hover:bg-black hover:text-white font-semibold"
+                  >
+                    VIEW MARKET →
+                  </a>
                 </div>
               </div>
-              <a
-                href={`https://polymarket.com/event/${market.slug || market.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-poly-blue hover:underline font-semibold text-sm"
-              >
-                VIEW ON POLYMARKET →
-              </a>
             </div>
           ))}
         </div>
