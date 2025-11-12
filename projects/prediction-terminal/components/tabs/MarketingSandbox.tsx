@@ -22,12 +22,20 @@ interface Market {
   market_url: string;
 }
 
+interface CreativeAngle {
+  type: string;
+  hook: string;
+  target_audience: string;
+  platform: string;
+  why_it_works: string;
+}
+
 export default function MarketingSandbox() {
   const [trendingPosts, setTrendingPosts] = useState<TrendingPost[]>([]);
   const [markets, setMarkets] = useState<Market[]>([]);
   const [selectedTrendId, setSelectedTrendId] = useState<string>('');
   const [selectedMarketId, setSelectedMarketId] = useState<string>('');
-  const [generatedAngles, setGeneratedAngles] = useState<string>('');
+  const [generatedAngles, setGeneratedAngles] = useState<CreativeAngle[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
@@ -70,24 +78,50 @@ export default function MarketingSandbox() {
 
     setLoading(true);
     setError('');
-    setGeneratedAngles('');
+    setGeneratedAngles([]);
 
     try {
-      // Generation logic will be implemented here
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Placeholder
-      setGeneratedAngles('Creative angles will appear here after generation is implemented.');
-    } catch (err) {
+      const response = await fetch('/api/generate-creative', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          trend_id: selectedTrendId || null,
+          market_id: selectedMarketId || null,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate angles');
+      }
+
+      const data = await response.json();
+      setGeneratedAngles(data.angles || []);
+    } catch (err: any) {
       console.error('Error generating angles:', err);
-      setError('Failed to generate creative angles. Please try again.');
+      setError(err.message || 'Failed to generate creative angles. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleCopyAll = () => {
-    if (!generatedAngles) return;
-    
-    navigator.clipboard.writeText(generatedAngles).then(() => {
+    if (!generatedAngles.length) return;
+
+    // Format angles as text
+    const formattedText = generatedAngles
+      .map((angle, idx) => {
+        return `ANGLE ${idx + 1}: ${angle.type.toUpperCase()}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hook: ${angle.hook}
+Target Audience: ${angle.target_audience}
+Platform: ${angle.platform}
+Why It Works: ${angle.why_it_works}
+`;
+      })
+      .join('\n');
+
+    navigator.clipboard.writeText(formattedText).then(() => {
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
     }).catch(err => {
@@ -195,7 +229,7 @@ export default function MarketingSandbox() {
       <div>
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">CREATIVE ANGLES</h2>
-          {generatedAngles && !loading && (
+          {generatedAngles.length > 0 && !loading && (
             <button
               onClick={handleCopyAll}
               className="px-4 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-semibold text-sm"
@@ -205,8 +239,8 @@ export default function MarketingSandbox() {
           )}
         </div>
 
-        <div className="border-2 border-black p-6 min-h-[600px] bg-white font-mono text-sm">
-          {!generatedAngles && !loading && (
+        <div className="border-2 border-black p-6 min-h-[600px] max-h-[800px] overflow-y-auto bg-white">
+          {generatedAngles.length === 0 && !loading && (
             <div className="flex items-center justify-center h-full text-black/50 text-center">
               <div>
                 <div className="text-4xl mb-4">💡</div>
@@ -226,9 +260,41 @@ export default function MarketingSandbox() {
             </div>
           )}
 
-          {generatedAngles && !loading && (
-            <div className="whitespace-pre-wrap leading-relaxed">
-              {generatedAngles}
+          {generatedAngles.length > 0 && !loading && (
+            <div className="space-y-4">
+              {generatedAngles.map((angle, idx) => (
+                <div
+                  key={idx}
+                  className="border-2 border-black p-4 hover:border-poly-blue transition-colors bg-white"
+                >
+                  {/* Header with Type and Platform */}
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="px-3 py-1 bg-black text-white font-bold text-xs uppercase">
+                      {angle.type}
+                    </span>
+                    <span className="px-2 py-1 border-2 border-black text-xs font-semibold">
+                      {angle.platform}
+                    </span>
+                  </div>
+
+                  {/* Hook - Main Headline */}
+                  <h3 className="text-lg font-bold mb-3 leading-tight">
+                    {angle.hook}
+                  </h3>
+
+                  {/* Target Audience */}
+                  <div className="mb-3">
+                    <div className="text-xs font-semibold text-black/60 mb-1">TARGET AUDIENCE</div>
+                    <div className="text-sm">{angle.target_audience}</div>
+                  </div>
+
+                  {/* Why It Works */}
+                  <div>
+                    <div className="text-xs font-semibold text-black/60 mb-1">WHY THIS WORKS</div>
+                    <div className="text-sm text-black/80 italic">{angle.why_it_works}</div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
