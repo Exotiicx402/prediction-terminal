@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import MarketingSandbox from '@/components/tabs/MarketingSandbox';
 
 type Tab = 'trending' | 'markets' | 'sandbox';
 
@@ -139,7 +140,7 @@ export default function DashboardV2() {
         )}
 
         {!loading && activeTab === 'sandbox' && (
-          <MarketingSandboxTab trends={trends} markets={markets} />
+          <MarketingSandbox />
         )}
       </div>
     </div>
@@ -507,129 +508,3 @@ function LiveMarketsTab({ markets, onRefresh }: { markets: any[]; onRefresh: () 
   );
 }
 
-// Tab 3: Marketing Sandbox
-function MarketingSandboxTab({ trends, markets }: { trends: any[]; markets: any[] }) {
-  const [selectedType, setSelectedType] = useState<'trend' | 'market'>('trend');
-  const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [analysis, setAnalysis] = useState<string>('');
-  const [generating, setGenerating] = useState(false);
-
-  const generateMarketing = async () => {
-    if (!selectedItem) return;
-
-    setGenerating(true);
-    try {
-      const response = await fetch('/api/generate-marketing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: selectedType,
-          item: selectedItem,
-        }),
-      });
-
-      const data = await response.json();
-      setAnalysis(data.analysis || 'No analysis generated.');
-    } catch (error) {
-      console.error('Error generating marketing:', error);
-      setAnalysis('Error generating marketing ideas.');
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  return (
-    <div className="grid grid-cols-2 gap-6">
-      {/* Left: Selection */}
-      <div>
-        <h2 className="text-2xl font-bold mb-4">SELECT CONTENT</h2>
-        
-        <div className="flex gap-2 mb-4">
-          <button
-            onClick={() => { setSelectedType('trend'); setSelectedItem(null); setAnalysis(''); }}
-            className={`px-4 py-2 font-semibold border-2 ${
-              selectedType === 'trend' 
-                ? 'border-poly-blue bg-poly-blue text-black' 
-                : 'border-black text-black'
-            }`}
-          >
-            TRENDING TOPICS
-          </button>
-          <button
-            onClick={() => { setSelectedType('market'); setSelectedItem(null); setAnalysis(''); }}
-            className={`px-4 py-2 font-semibold border-2 ${
-              selectedType === 'market' 
-                ? 'border-poly-blue bg-poly-blue text-black' 
-                : 'border-black text-black'
-            }`}
-          >
-            LIVE MARKETS
-          </button>
-        </div>
-
-        <div className="border-2 border-black p-4 max-h-[600px] overflow-y-auto">
-          {selectedType === 'trend' && trends.map((trend) => (
-            <div
-              key={trend.id}
-              onClick={() => setSelectedItem(trend)}
-              className={`p-3 mb-2 border cursor-pointer ${
-                selectedItem?.id === trend.id
-                  ? 'border-poly-blue bg-poly-blue/10'
-                  : 'border-black/20 hover:border-poly-blue'
-              }`}
-            >
-              <div className="font-semibold text-sm">{trend.title}</div>
-              <div className="text-xs text-black/50 mt-1">{trend.source.toUpperCase()}</div>
-            </div>
-          ))}
-
-          {selectedType === 'market' && markets.map((market) => (
-            <div
-              key={market.id}
-              onClick={() => setSelectedItem(market)}
-              className={`p-3 mb-2 border cursor-pointer ${
-                selectedItem?.id === market.id
-                  ? 'border-poly-blue bg-poly-blue/10'
-                  : 'border-black/20 hover:border-poly-blue'
-              }`}
-            >
-              <div className="font-semibold text-sm">{market.question}</div>
-              <div className="text-xs text-black/50 mt-1">
-                ${(market.volume || 0).toLocaleString()} volume
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <button
-          onClick={generateMarketing}
-          disabled={!selectedItem || generating}
-          className="w-full mt-4 px-6 py-3 bg-poly-blue text-black font-bold hover:bg-poly-blue/80 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {generating ? '⏳ GENERATING...' : '✨ GENERATE MARKETING IDEAS'}
-        </button>
-      </div>
-
-      {/* Right: Analysis */}
-      <div>
-        <h2 className="text-2xl font-bold mb-4">MARKETING IDEAS</h2>
-        <div className="border-2 border-black p-6 min-h-[600px] whitespace-pre-wrap">
-          {!analysis && !generating && (
-            <div className="text-black/50 text-center py-20">
-              Select an item and click "Generate Marketing Ideas" to begin.
-            </div>
-          )}
-          {generating && (
-            <div className="text-center py-20">
-              <div className="text-xl mb-2">⏳</div>
-              <div>Generating marketing ideas...</div>
-            </div>
-          )}
-          {analysis && !generating && (
-            <div className="text-sm leading-relaxed">{analysis}</div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
