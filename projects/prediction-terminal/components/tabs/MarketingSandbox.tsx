@@ -26,7 +26,6 @@ interface CreativeAngle {
   type: string;
   hook: string;
   target_audience: string;
-  platform: string;
   why_it_works: string;
 }
 
@@ -91,14 +90,28 @@ export default function MarketingSandbox() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate angles');
+        let errorMessage = 'Failed to generate angles';
+        try {
+          const errorData = await response.json();
+          console.error('API Error Response:', errorData);
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          console.error('Could not parse error response');
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
+      console.log('API Success Response:', data);
+      
+      if (!data.angles || !Array.isArray(data.angles)) {
+        throw new Error('Invalid response format from API');
+      }
+      
       setGeneratedAngles(data.angles || []);
     } catch (err: any) {
       console.error('Error generating angles:', err);
+      console.error('Error details:', { message: err.message, stack: err.stack });
       setError(err.message || 'Failed to generate creative angles. Please try again.');
     } finally {
       setLoading(false);
@@ -115,7 +128,6 @@ export default function MarketingSandbox() {
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Hook: ${angle.hook}
 Target Audience: ${angle.target_audience}
-Platform: ${angle.platform}
 Why It Works: ${angle.why_it_works}
 `;
       })
@@ -267,13 +279,10 @@ Why It Works: ${angle.why_it_works}
                   key={idx}
                   className="border-2 border-black p-4 hover:border-poly-blue transition-colors bg-white"
                 >
-                  {/* Header with Type and Platform */}
-                  <div className="flex justify-between items-center mb-3">
+                  {/* Header with Type Badge */}
+                  <div className="mb-3">
                     <span className="px-3 py-1 bg-black text-white font-bold text-xs uppercase">
                       {angle.type}
-                    </span>
-                    <span className="px-2 py-1 border-2 border-black text-xs font-semibold">
-                      {angle.platform}
                     </span>
                   </div>
 

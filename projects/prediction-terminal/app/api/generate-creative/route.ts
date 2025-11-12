@@ -6,7 +6,6 @@ interface CreativeAngle {
   type: string;
   hook: string;
   target_audience: string;
-  platform: string;
   why_it_works: string;
 }
 
@@ -98,9 +97,8 @@ URL: ${marketData.market_url || 'N/A'}
 For each angle, provide:
 1. Type (fear/fomo/controversy/data/tribal/entertainment/education)
 2. Hook (one-line ad copy headline - punchy, attention-grabbing)
-3. Target Audience (demographics + psychographics)
-4. Platform (TikTok, Meta, Snapchat, Twitter/X)
-5. Why This Works (1 sentence explaining the psychology)
+3. Target Audience (demographics + psychographics - be specific)
+4. Why This Works (1-2 sentences explaining the psychology and strategy)
 
 Return ONLY a valid JSON array with this exact structure (no markdown, no extra text):
 [
@@ -108,28 +106,38 @@ Return ONLY a valid JSON array with this exact structure (no markdown, no extra 
     "type": "fear",
     "hook": "...",
     "target_audience": "...",
-    "platform": "...",
     "why_it_works": "..."
   }
 ]`;
 
     // Call OpenAI
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are a creative marketing strategist specializing in prediction markets and viral advertising. Return only valid JSON, no markdown formatting.',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      temperature: 0.9,
-      max_tokens: 2000,
-    });
+    console.log('Calling OpenAI with prompt length:', prompt.length);
+    let completion;
+    try {
+      completion = await openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are a creative marketing strategist specializing in prediction markets and viral advertising. Return only valid JSON, no markdown formatting.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        temperature: 0.9,
+        max_tokens: 2000,
+      });
+      console.log('OpenAI response received');
+    } catch (openaiError: any) {
+      console.error('OpenAI API Error:', openaiError);
+      return NextResponse.json(
+        { error: `OpenAI API error: ${openaiError.message}` },
+        { status: 500 }
+      );
+    }
 
     const responseText = completion.choices[0]?.message?.content || '[]';
 
