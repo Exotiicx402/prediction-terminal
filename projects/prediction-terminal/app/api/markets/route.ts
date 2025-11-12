@@ -25,7 +25,7 @@ export async function GET(request: Request) {
       } else if (category === 'entertainment') {
         query = query.or('category.ilike.%entertain%,category.ilike.%culture%,category.ilike.%pop%');
       } else {
-        // Exact match for other categories
+        // Generic category filter
         query = query.ilike('category', `%${category}%`);
       }
     }
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(markets || []);
   } catch (error) {
-    console.error('Error fetching Polymarket markets:', error);
+    console.error('Error fetching markets:', error);
     return NextResponse.json({ error: 'Failed to fetch markets' }, { status: 500 });
   }
 }
