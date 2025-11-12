@@ -29,9 +29,21 @@ export async function GET(request: Request) {
 
     const data = await response.json();
 
-    // Sort by volume
-    const activeMarkets = data
-      .filter((m: any) => m.active && !m.closed && m.slug)
+    // Group by parent market to avoid duplicates from sub-markets
+    const marketsBySlug = new Map();
+    
+    for (const market of data) {
+      if (!market.active || market.closed || !market.slug) continue;
+      
+      // If we haven't seen this slug yet, or this market has higher volume, use it
+      const existing = marketsBySlug.get(market.slug);
+      if (!existing || parseFloat(market.volume || 0) > parseFloat(existing.volume || 0)) {
+        marketsBySlug.set(market.slug, market);
+      }
+    }
+
+    // Convert to array and sort by volume
+    const activeMarkets = Array.from(marketsBySlug.values())
       .sort((a: any, b: any) => {
         const volumeA = parseFloat(a.volume || 0);
         const volumeB = parseFloat(b.volume || 0);
@@ -39,7 +51,7 @@ export async function GET(request: Request) {
       })
       .slice(0, 100);
 
-    console.log(`Fetched ${activeMarkets.length} active markets with valid slugs`);
+    console.log(`Fetched ${activeMarkets.length} unique parent markets`);
 
     // Upsert markets into database
     let marketsInserted = 0;
