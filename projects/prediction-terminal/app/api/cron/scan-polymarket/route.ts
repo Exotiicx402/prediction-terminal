@@ -13,9 +13,9 @@ export async function GET(request: Request) {
   try {
     const supabase = getServerSupabase();
     
-    // Fetch markets from Polymarket API
+    // Fetch active markets from Polymarket CLOB API
     const response = await fetch(
-      'https://gamma-api.polymarket.com/markets?limit=100&closed=false&order=createdAt&ascending=false',
+      'https://clob.polymarket.com/markets?active=true',
       {
         headers: {
           'User-Agent': 'Mozilla/5.0',
@@ -24,18 +24,22 @@ export async function GET(request: Request) {
     );
 
     if (!response.ok) {
-      throw new Error(`Polymarket API returned ${response.status}`);
+      throw new Error(`Polymarket CLOB API returned ${response.status}`);
     }
 
     const data = await response.json();
 
-    // Filter to only truly active markets and sort by volume
+    // Sort by volume and limit to top 100
     const activeMarkets = data
       .filter((m: any) => m.active && !m.closed)
-      .sort((a: any, b: any) => (b.volume || 0) - (a.volume || 0))
-      .slice(0, 50);
+      .sort((a: any, b: any) => {
+        const volumeA = parseFloat(a.volume || 0);
+        const volumeB = parseFloat(b.volume || 0);
+        return volumeB - volumeA;
+      })
+      .slice(0, 100);
 
-    console.log(`Fetched ${activeMarkets.length} active Polymarket markets`);
+    console.log(`Fetched ${activeMarkets.length} active markets from CLOB API`);
 
     // Upsert markets into database
     let marketsInserted = 0;
@@ -67,12 +71,12 @@ export async function GET(request: Request) {
       }
     }
 
-    console.log(`Inserted/updated ${marketsInserted} markets in database`);
+    console.log(`Synced ${marketsInserted}/${activeMarkets.length} markets to database`);
 
     return NextResponse.json({
       success: true,
-      marketsFetched: activeMarkets.length,
-      marketsInserted,
+      marketsSynced: marketsInserted,
+      marketsEvaluated: activeMarkets.length,
     });
   } catch (error) {
     console.error('Error in Polymarket scan:', error);
