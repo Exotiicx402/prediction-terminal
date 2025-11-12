@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSupabase } from '@/lib/supabase/client';
-import { fetchRisingTrends, fetchNewTrends } from '@/lib/services/reddit';
+import { fetchSubredditTrends } from '@/lib/services/reddit';
 import { sendSystemNotification } from '@/lib/services/slack';
-import { hasRelevantKeywords } from '@/lib/config/trends';
 
 export const maxDuration = 60; // 60 seconds timeout
 
@@ -16,34 +15,48 @@ export async function GET(request: Request) {
   try {
     const supabase = getServerSupabase();
     const trendsProcessed: string[] = [];
-    const highPotentialTrends: string[] = [];
+    
+    // Target specific high-value subreddits
+    const targetSubreddits = [
+      'politics',
+      'geopolitics', 
+      'worldnews',
+      'nfl',
+      'nba',
+      'soccer'
+    ];
 
-    // Fetch rising trends from r/all for real-time insights (50 posts)
-    const risingTrends = await fetchRisingTrends(50);
+    const allTrends = [];
     
-    // Also fetch newest trends (30 posts) to catch things early
-    const newTrends = await fetchNewTrends(30);
+    // Fetch hot posts from each subreddit
+    for (const subreddit of targetSubreddits) {
+      try {
+        const trends = await fetchSubredditTrends(subreddit, 25);
+        allTrends.push(...trends);
+      } catch (error) {
+        console.error(`Error fetching from r/${subreddit}:`, error);
+      }
+    }
+
+    console.log(`Fetched ${allTrends.length} posts from ${targetSubreddits.length} subreddits`);
     
-    // Combine and deduplicate
-    const allTrends = [...risingTrends, ...newTrends];
+    // Filter to posts from last 24 hours with 500+ upvotes
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const uniqueTrends = Array.from(
-      new Map(allTrends.map(t => [t.id, t])).values()
+      new Map(
+        allTrends
+          .filter(t => {
+            const postDate = new Date(t.created_at);
+            return t.upvotes >= 500 && postDate >= oneDayAgo;
+          })
+          .map(t => [t.id, t])
+      ).values()
     );
 
-    console.log(`Scanning ${uniqueTrends.length} unique Reddit trends (rising + new)`);
+    console.log(`${uniqueTrends.length} posts meet criteria (500+ upvotes, last 24h)`);
 
     for (const trend of uniqueTrends) {
-      // Filter by keywords first
-      const combinedText = `${trend.title} ${trend.content}`;
-      if (!hasRelevantKeywords(combinedText)) {
-        continue; // Skip if no relevant keywords
-      }
-
-      // Lower thresholds for rising/new content to catch trends early
-      // Skip only if very low engagement (< 10 upvotes or 0 comments)
-      if (trend.upvotes < 10 || trend.comments < 1) {
-        continue;
-      }
+      // Already filtered for 500+ upvotes and last 24 hours
 
       // Check if we've already processed this trend
       const { data: existing } = await supabase
@@ -101,17 +114,13 @@ export async function GET(request: Request) {
       })
       .eq('source', 'reddit');
 
-    // Send summary notification
-    if (highPotentialTrends.length > 0) {
-      await sendSystemNotification(
-        `Reddit scan complete: ${trendsProcessed.length} trends processed, ${highPotentialTrends.length} high-potential opportunities found`
-      );
-    }
+    console.log(`Reddit scan complete: ${trendsProcessed.length} posts added from ${targetSubreddits.length} subreddits`);
 
     return NextResponse.json({
       success: true,
-      trendsProcessed: trendsProcessed.length,
-      highPotentialTrends: highPotentialTrends.length,
+      postsAdded: trendsProcessed.length,
+      subredditsScanned: targetSubreddits.length,
+      postsEvaluated: uniqueTrends.length,
     });
   } catch (error) {
     console.error('Error in Reddit scan:', error);
