@@ -63,7 +63,7 @@ export default function DashboardV2() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <img 
-                src="https://res.cloudinary.com/dy1nbfg5g/image/upload/v1731181946/polymarket-logo_nfmyex.png" 
+                src="https://res.cloudinary.com/dy1nbfg5g/image/upload/v1762752805/logo-black_xgggh7.svg" 
                 alt="Polymarket" 
                 className="h-8"
               />
