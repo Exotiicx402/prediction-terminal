@@ -13,9 +13,9 @@ export async function GET(request: Request) {
   try {
     const supabase = getServerSupabase();
     
-    // Fetch active markets from Polymarket CLOB API
+    // Fetch active markets from Polymarket Gamma API (only returns markets with live pages)
     const response = await fetch(
-      'https://clob.polymarket.com/markets?active=true',
+      'https://gamma-api.polymarket.com/markets?limit=100&active=true&closed=false',
       {
         headers: {
           'User-Agent': 'Mozilla/5.0',
@@ -24,14 +24,14 @@ export async function GET(request: Request) {
     );
 
     if (!response.ok) {
-      throw new Error(`Polymarket CLOB API returned ${response.status}`);
+      throw new Error(`Polymarket Gamma API returned ${response.status}`);
     }
 
     const data = await response.json();
 
-    // Sort by volume and limit to top 100
+    // Sort by volume
     const activeMarkets = data
-      .filter((m: any) => m.active && !m.closed)
+      .filter((m: any) => m.active && !m.closed && m.slug)
       .sort((a: any, b: any) => {
         const volumeA = parseFloat(a.volume || 0);
         const volumeB = parseFloat(b.volume || 0);
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
       })
       .slice(0, 100);
 
-    console.log(`Fetched ${activeMarkets.length} active markets from CLOB API`);
+    console.log(`Fetched ${activeMarkets.length} active markets with valid slugs`);
 
     // Upsert markets into database
     let marketsInserted = 0;
@@ -48,16 +48,16 @@ export async function GET(request: Request) {
         .from('polymarket_markets')
         .upsert(
           {
-            id: market.id || market.condition_id || market.question_id,
+            id: market.id,
             question: market.question,
             description: market.description || '',
             volume: parseFloat(market.volume || 0),
             liquidity: parseFloat(market.liquidity || 0),
             current_odds: market.outcomePrices ? parseFloat(market.outcomePrices[0]) : null,
-            end_date: market.end_date_iso ? new Date(market.end_date_iso).toISOString() : null,
-            category: market.tags?.[0] || market.category || null,
-            slug: market.condition_id || market.id,
-            market_url: `https://polymarket.com/event/${market.condition_id || market.id}`,
+            end_date: market.endDate ? new Date(market.endDate).toISOString() : null,
+            category: market.category || null,
+            slug: market.slug,
+            market_url: `https://polymarket.com/event/${market.slug}`,
             raw_data: market,
             updated_at: new Date().toISOString(),
           },
