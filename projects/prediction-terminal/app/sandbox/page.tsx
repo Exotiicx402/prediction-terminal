@@ -59,7 +59,7 @@ export default function SandboxPage() {
       // Fetch trending posts from our database
       const postsRes = await fetch('/api/trending-posts');
       const postsData = await postsRes.json();
-      setPosts(postsData);
+      setPosts(postsData.trends || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
