@@ -26,12 +26,23 @@ interface TrendingPost {
   detected_at: string;
 }
 
+interface CreativeAngle {
+  type: string;
+  hook: string;
+  target_audience: string;
+  why_it_works: string;
+}
+
 export default function SandboxPage() {
   const [markets, setMarkets] = useState<PolymarketMarket[]>([]);
   const [posts, setPosts] = useState<TrendingPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMarket, setSelectedMarket] = useState<PolymarketMarket | null>(null);
+  const [selectedPost, setSelectedPost] = useState<TrendingPost | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [generatedAngles, setGeneratedAngles] = useState<CreativeAngle[]>([]);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -81,6 +92,41 @@ export default function SandboxPage() {
     });
   };
 
+  const generateAngles = async () => {
+    if (!selectedMarket && !selectedPost) {
+      setError('Please select at least a market or trending post');
+      return;
+    }
+
+    setGenerating(true);
+    setError('');
+    setGeneratedAngles([]);
+
+    try {
+      const response = await fetch('/api/generate-creative', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          market_id: selectedMarket?.id || null,
+          trend_id: selectedPost?.id || null,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate angles');
+      }
+
+      const data = await response.json();
+      setGeneratedAngles(data.angles || []);
+    } catch (err: any) {
+      console.error('Error generating angles:', err);
+      setError(err.message || 'Failed to generate creative angles');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -123,6 +169,66 @@ export default function SandboxPage() {
         </div>
       ) : (
         <div className="container mx-auto px-4 py-6">
+          {/* Generation Panel */}
+          {(selectedMarket || selectedPost) && (
+            <div className="mb-6 p-6 bg-gray-50 border-2 border-black rounded-xl">
+              <h2 className="text-xl font-bold text-black mb-4">✨ Generate Creative Angles</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                {selectedMarket && (
+                  <div className="p-3 bg-white border-2 border-poly-blue rounded-lg">
+                    <div className="text-xs font-semibold text-black mb-1">SELECTED MARKET</div>
+                    <div className="text-sm text-black">{selectedMarket.question}</div>
+                  </div>
+                )}
+                {selectedPost && (
+                  <div className="p-3 bg-white border-2 border-poly-blue rounded-lg">
+                    <div className="text-xs font-semibold text-black mb-1">SELECTED TRENDING POST</div>
+                    <div className="text-sm text-black">{selectedPost.title}</div>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={generateAngles}
+                disabled={generating}
+                className="w-full px-6 py-3 bg-poly-blue text-black font-bold text-lg border-2 border-black hover:bg-black hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {generating ? '⏳ GENERATING...' : '✨ GENERATE CREATIVE ANGLES'}
+              </button>
+
+              {error && (
+                <div className="mt-4 p-3 bg-red-50 border-2 border-red-600 text-red-600 text-sm font-semibold rounded-lg">
+                  ⚠️ {error}
+                </div>
+              )}
+
+              {generatedAngles.length > 0 && (
+                <div className="mt-6 space-y-4">
+                  <h3 className="text-lg font-bold text-black">Generated Angles ({generatedAngles.length})</h3>
+                  {generatedAngles.map((angle, idx) => (
+                    <div key={idx} className="border-2 border-black rounded-lg p-4 bg-white">
+                      <div className="mb-3">
+                        <span className="px-3 py-1 bg-black text-white font-bold text-xs uppercase">
+                          {angle.type}
+                        </span>
+                      </div>
+                      <h4 className="text-lg font-bold text-black mb-3">{angle.hook}</h4>
+                      <div className="mb-3">
+                        <div className="text-xs font-semibold text-black/60 mb-1">TARGET AUDIENCE</div>
+                        <div className="text-sm text-black">{angle.target_audience}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold text-black/60 mb-1">WHY THIS WORKS</div>
+                        <div className="text-sm text-black/80 italic">{angle.why_it_works}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Markets Column */}
             <div>
@@ -183,7 +289,12 @@ export default function SandboxPage() {
                 {(selectedMarket ? getRelatedPosts(selectedMarket) : posts).map((post) => (
                   <div
                     key={post.id}
-                    className="border-2 border-black rounded-xl p-4 hover:border-poly-blue transition-all"
+                    onClick={() => setSelectedPost(post)}
+                    className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
+                      selectedPost?.id === post.id
+                        ? 'border-poly-blue bg-blue-50'
+                        : 'border-black hover:border-poly-blue'
+                    }`}
                   >
                     <div className="flex items-center gap-2 mb-2">
                       <img 
